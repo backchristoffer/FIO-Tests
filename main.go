@@ -51,63 +51,21 @@ func runFio(config fioConfig) (string, error) {
 	return string(output), err
 }
 
-func iops_and_bw_for_rand_reads() {
-	configf := fioConfig{
-		Filename:       "iops_and_bw_for_rand_reads_and_writes.file",
-		Size:           "1GB",
-		Direct:         true,
-		RW:             "randread",
-		BS:             "4k",
-		IOEngine:       "libaio",
-		IODepth:        256,
-		NumJobs:        8,
-		TimeBased:      true,
-		GroupReporting: true,
-		Name:           "iops_and_bw_for_rand_reads_and_writes",
-		Runtime:        10,
-		ETANewline:     1,
+func runTests(configs []fioConfig) {
+	for _, config := range configs {
+		output, err := runFio(config)
+		if err != nil {
+			fmt.Println("Error running test for %s: %v\n", config.Name, err)
+			continue
+		}
+		fmt.Println("Output for %s:\n%s\n", config.Name, output)
 	}
-
-	output, err := runFio(configf)
-	if err != nil {
-		fmt.Println("Error: ", err)
-		return
-	}
-
-	fmt.Println("Output:", output)
-}
-
-func iops_and_bw_for_seq_reads() {
-	configf := fioConfig{
-		Filename:       "iops_and_bw_for_seq_reads.file",
-		Size:           "5GB",
-		Direct:         true,
-		RW:             "randread",
-		BS:             "4k",
-		IOEngine:       "libaio",
-		IODepth:        256,
-		NumJobs:        8,
-		TimeBased:      true,
-		GroupReporting: true,
-		Name:           "iops_and_bw_for_seq_reads",
-		Runtime:        10,
-		ETANewline:     1,
-	}
-
-	output, err := runFio(configf)
-	if err != nil {
-		fmt.Println("Error:", err)
-		return
-	}
-
-	fmt.Println("Output:", output)
 }
 
 func main() {
 	interval := 10 * time.Second
-
 	for {
+		runTests(fioConfigs)
 		time.Sleep(interval)
 	}
-
 }
