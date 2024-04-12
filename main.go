@@ -2,9 +2,7 @@ package main
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
-	"strings"
 	"time"
 )
 
@@ -24,88 +22,91 @@ type fioConfig struct {
 	ETANewline     int    // print ETA on newline
 }
 
-func check_fio() {
-	cmd := exec.Command(
-		"fio",
-		"--version",
-	)
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
 
+func runFio(config fioConfig) (string, error) {
+	args := []string{
+		"--filename=" + config.Filename,
+		"--size=" + config.Size,
+		"--direct=" + fmt.Sprintf("%d", boolToInt(config.Direct)),
+		"--rw=" + config.RW,
+		"--bs=" + config.BS,
+		"--ioengine=" + config.IOEngine,
+		"--iodepth=" + fmt.Sprintf("%d", config.IODepth),
+		"--numbjobs=" + fmt.Sprintf("%d", config.NumJobs),
+		"--time_based=" + fmt.Sprintf("%d", boolToInt(config.TimeBased)),
+		"--group_reporting=" + fmt.Sprintf("%d", boolToInt(config.GroupReporting)),
+		"--name=" + config.Name,
+		"--runtime=" + fmt.Sprintf("%d", config.Runtime),
+		"--eta-newline=" + fmt.Sprintf("%d", config.ETANewline),
+	}
+
+	cmd := exec.Command("fio", args...)
 	output, err := cmd.CombinedOutput()
+	return string(output), err
+}
+
+func iops_and_bw_for_rand_reads() {
+	configf := fioConfig{
+		Filename:       "iops_and_bw_for_rand_reads_and_writes.file",
+		Size:           "1GB",
+		Direct:         true,
+		RW:             "randread",
+		BS:             "4k",
+		IOEngine:       "libaio",
+		IODepth:        256,
+		NumJobs:        8,
+		TimeBased:      true,
+		GroupReporting: true,
+		Name:           "iops_and_bw_for_rand_reads_and_writes",
+		Runtime:        10,
+		ETANewline:     1,
+	}
+
+	output, err := runFio(configf)
 	if err != nil {
 		fmt.Println("Error: ", err)
 		return
 	}
 
-	output_str := string(output)
-
-	if strings.Contains(output_str, "fio-") {
-		fmt.Println("FIO is installed")
-	} else {
-		fmt.Println("FIO is not installed")
-	}
+	fmt.Println("Output:", output)
 }
 
-func iops_and_bw_for_rand_reads() {
-	cmd := exec.Command(
-		"fio",
-		"--filename=iops_and_bw_for_rand_reads.file", // name
-		"--size=10GB",                        // size of test file
-		"--direct=1",                         // use direct I/O mode (bypassing kernel cache)
-		"--rw=randread",                      // random read operations during the test
-		"--bs=4k",                            // block size of each I/O request (4 KB in this case)
-		"--ioengine=libaio",                  // I/O engine used
-		"--iodepth=256",                      // number of I/Os to keep in flight (queue depth)
-		"--numjobs=8",                        // based on number of cpus
-		"--time_based",                       // use time-based instead of size-based I/O
-		"--group_reporting",                  // report the results for all jobs as a group
-		"--name=iops_and_bw_for_rands_reads", // name
-		"--runtime=10",                       // runtime in sec
-		"--eta-newline=1",                    // print ETA on newline
-	)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err := cmd.Run()
-	if err != nil {
-		panic(err)
+func iops_and_bw_for_seq_reads() {
+	configf := fioConfig{
+		Filename:       "iops_and_bw_for_seq_reads.file",
+		Size:           "5GB",
+		Direct:         true,
+		RW:             "randread",
+		BS:             "4k",
+		IOEngine:       "libaio",
+		IODepth:        256,
+		NumJobs:        8,
+		TimeBased:      true,
+		GroupReporting: true,
+		Name:           "iops_and_bw_for_seq_reads",
+		Runtime:        10,
+		ETANewline:     1,
 	}
 
-}
-
-func iops_and_bw_for_rand_reads_and_writes() {
-	cmd := exec.Command(
-		"fio",
-		"--filename=iops_and_bw_for_rand_reads_and_writes.file",
-		"--size=500GB",
-		"--direct=1",
-		"--rw=randread",
-		"--bs=4k",
-		"--ioengine=libaio",
-		"--iodepth=256",
-		"--numjobs=8",
-		"--time_based",
-		"--group_reporting",
-		"--name=iops_and_bw_for_rand_reads_and_writes",
-		"--runtime=10",
-		"--eta-newline=1",
-	)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	err := cmd.Run()
+	output, err := runFio(configf)
 	if err != nil {
-		panic(err)
+		fmt.Println("Error:", err)
+		return
 	}
 
+	fmt.Println("Output:", output)
 }
 
 func main() {
 	interval := 10 * time.Second
 
 	for {
-		iops_and_bw_for_rand_reads()
 		time.Sleep(interval)
 	}
 
