@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
+	"strings"
+	"syscall"
 	"time"
 )
 
@@ -38,7 +41,7 @@ func runFio(config fioConfig) (string, error) {
 		"--bs=" + config.BS,
 		"--ioengine=" + config.IOEngine,
 		"--iodepth=" + fmt.Sprintf("%d", config.IODepth),
-		"--numbjobs=" + fmt.Sprintf("%d", config.NumJobs),
+		"--numjobs=" + fmt.Sprintf("%d", config.NumJobs),
 		"--time_based=" + fmt.Sprintf("%d", boolToInt(config.TimeBased)),
 		"--group_reporting=" + fmt.Sprintf("%d", boolToInt(config.GroupReporting)),
 		"--name=" + config.Name,
@@ -47,18 +50,34 @@ func runFio(config fioConfig) (string, error) {
 	}
 
 	cmd := exec.Command("fio", args...)
-	output, err := cmd.CombinedOutput()
-	return string(output), err
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	fmt.Printf("Executing command: %s\n", strings.Join(cmd.Args, " "))
+
+	err := cmd.Run()
+	output := stdout.String()
+	if err != nil {
+		exitErr, ok := err.(*exec.ExitError)
+		if ok {
+			exitStatus := exitErr.Sys().(syscall.WaitStatus).ExitStatus()
+			output += fmt.Sprintf("Exit Status: %d\n", exitStatus)
+		}
+		output += fmt.Sprintf("Error: %v\n", err)
+		output += stderr.String()
+	}
+	return output, err
 }
 
 func runTests(configs []fioConfig) {
 	for _, config := range configs {
 		output, err := runFio(config)
 		if err != nil {
-			fmt.Println("Error running test for %s: %v\n", config.Name, err)
+			fmt.Printf("Error running test for %s: %v\n", config.Name, err)
 			continue
 		}
-		fmt.Println("Output for %s:\n%s\n", config.Name, output)
+		fmt.Printf("Output for %s:\n%s\n", config.Name, output)
 	}
 }
 
